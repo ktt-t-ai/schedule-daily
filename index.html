@@ -438,114 +438,201 @@ header {
 }
 .template-icon { font-size: 22px; line-height: 1; }
 
-/* Time wheel picker */
-.time-wheel-row {
+/* Time picker — dual-handle range slider over the 24h timeline */
+.time-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.time-display {
   display: flex;
   align-items: stretch;
-  gap: 6px;
-  background: var(--surface-2);
-  border-radius: 14px;
-  padding: 12px 8px 14px;
+  justify-content: center;
+  gap: 8px;
 }
-.time-wheel-group {
+.time-display-btn {
   flex: 1;
+  background: var(--surface-2);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  padding: 9px 8px 11px;
+  font-family: inherit;
+  color: var(--text);
+  cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  min-width: 0;
+  gap: 2px;
+  min-height: 60px;
+  transition: border-color 0.15s, background 0.15s, transform 0.12s;
 }
-.time-wheel-label {
+.time-display-btn:active { transform: scale(0.985); }
+.time-display-btn.active {
+  border-color: var(--text);
+  background: var(--surface);
+}
+.time-display-sub {
   font-size: 9px;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   font-weight: 600;
   font-family: "JetBrains Mono", monospace;
-  height: 12px;
-  line-height: 12px;
 }
-.time-wheels {
+.time-display-val {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 24px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.005em;
+  color: var(--text);
+}
+.time-display-sep {
+  align-self: center;
+  color: var(--text-faint);
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.time-track-wrap { padding: 2px 0 0; }
+.time-track {
   position: relative;
-  display: flex;
-  align-items: center;
-  gap: 1px;
+  height: 44px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
-.time-wheels::before,
-.time-wheels::after {
+.time-track-others {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  top: 13px;
+  bottom: 13px;
+  pointer-events: none;
+}
+.time-track-other {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  border-radius: 3px;
+  opacity: 0.32;
+}
+.time-track-fill {
+  position: absolute;
+  top: 11px;
+  bottom: 11px;
+  background: var(--text);
+  border-radius: 11px;
+  pointer-events: none;
+}
+.time-track-thumb {
+  position: absolute;
+  top: 50%;
+  width: 30px;
+  height: 30px;
+  margin-left: -15px;
+  margin-top: -15px;
+  background: var(--surface);
+  border: 2px solid var(--text);
+  border-radius: 50%;
+  cursor: grab;
+  z-index: 3;
+  touch-action: none;
+  transition: transform 0.15s cubic-bezier(0.2, 0.85, 0.25, 1), box-shadow 0.18s;
+}
+.time-track-thumb::after {
+  /* expanded hit area for fingers */
   content: "";
   position: absolute;
-  left: -6px;
-  right: -6px;
-  height: 1px;
-  background: var(--border-strong);
-  pointer-events: none;
-  z-index: 3;
+  inset: -10px;
+  border-radius: 50%;
 }
-.time-wheels::before { top: 40px; }
-.time-wheels::after { top: 80px; }
-.wheel {
-  height: 120px;
-  width: 44px;
-  overflow-y: scroll;
-  scroll-snap-type: y mandatory;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-  mask-image: linear-gradient(to bottom, transparent 0%, black 28%, black 72%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 28%, black 72%, transparent 100%);
-  border-radius: 4px;
-  overscroll-behavior: contain;
-  perspective: 600px;
+.time-track-thumb.active {
+  box-shadow: 0 0 0 6px color-mix(in oklch, var(--text) 12%, transparent);
 }
-.wheel::-webkit-scrollbar { display: none; }
-.wheel-items {
-  padding: 40px 0;
-  transform-style: preserve-3d;
+.time-track-thumb.dragging {
+  cursor: grabbing;
+  transform: scale(1.18);
+  box-shadow: 0 4px 14px rgba(20, 16, 12, 0.18), 0 0 0 6px color-mix(in oklch, var(--text) 12%, transparent);
 }
-.wheel-item {
-  height: 40px;
+.time-track-axis {
+  display: flex;
+  justify-content: space-between;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  color: var(--text-faint);
+  letter-spacing: 0.04em;
+  margin: 6px 16px 0;
+}
+.time-fine {
   display: flex;
   align-items: center;
   justify-content: center;
-  scroll-snap-align: center;
-  scroll-snap-stop: always;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 19px;
+  gap: 14px;
+  padding: 2px 0 0;
+  animation: fineSlideIn 0.2s ease;
+}
+@keyframes fineSlideIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.time-fine[hidden] { display: none; }
+.time-fine-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1.5px solid var(--border-strong);
+  font-size: 20px;
   font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-faint);
-  cursor: pointer;
-  user-select: none;
-  transform-origin: center center;
-  backface-visibility: hidden;
-  will-change: transform, opacity;
-  transition: color 0.12s, font-weight 0.12s;
-}
-.wheel-item.selected {
   color: var(--text);
-  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s, transform 0.12s;
 }
-.wheel-sep {
+.time-fine-btn:active { background: var(--surface-2); transform: scale(0.94); }
+.time-fine-label {
   font-family: "JetBrains Mono", monospace;
-  font-size: 19px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--text-muted);
-  padding: 0 2px;
-  transform: translateY(-1px);
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  min-width: 96px;
+  text-align: center;
 }
-.time-arrow-wrap {
+.duration-chips {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 2px 0;
+  margin: 0 -2px;
+}
+.duration-chips::-webkit-scrollbar { display: none; }
+.duration-chip {
   flex-shrink: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 8px 14px;
+  min-height: 36px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, color 0.12s, border-color 0.12s, transform 0.12s;
 }
-.time-arrow {
-  color: var(--text-faint);
-  font-size: 16px;
-  height: 120px;
-  display: flex;
-  align-items: center;
+.duration-chip:active { transform: scale(0.95); }
+.duration-chip.active {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
 }
 
 /* Content input (study only) */
@@ -784,29 +871,44 @@ header {
 
     <div class="modal-section">
       <div class="modal-section-label">時間</div>
-      <div class="time-wheel-row">
-        <div class="time-wheel-group">
-          <div class="time-wheel-label">開始</div>
-          <div class="time-wheels">
-            <div class="wheel" id="wheelSH"></div>
-            <div class="wheel-sep">:</div>
-            <div class="wheel" id="wheelSM"></div>
+      <div class="time-picker">
+        <div class="time-display">
+          <button type="button" class="time-display-btn" id="tpStartBtn" aria-label="開始時刻を微調整">
+            <span class="time-display-sub">開始</span>
+            <span class="time-display-val" id="tpStartVal">09:30</span>
+          </button>
+          <span class="time-display-sep" aria-hidden="true">→</span>
+          <button type="button" class="time-display-btn" id="tpEndBtn" aria-label="終了時刻を微調整">
+            <span class="time-display-sub">終了</span>
+            <span class="time-display-val" id="tpEndVal">10:30</span>
+          </button>
+        </div>
+        <div class="time-track-wrap">
+          <div class="time-track" id="tpTrack">
+            <div class="time-track-others" id="tpOthers"></div>
+            <div class="time-track-fill" id="tpFill"></div>
+            <div class="time-track-thumb" id="tpThumbStart" data-thumb="start" role="slider" aria-label="開始時刻" aria-valuemin="240" aria-valuemax="1670" tabindex="0"></div>
+            <div class="time-track-thumb" id="tpThumbEnd" data-thumb="end" role="slider" aria-label="終了時刻" aria-valuemin="250" aria-valuemax="1680" tabindex="0"></div>
+          </div>
+          <div class="time-track-axis" aria-hidden="true">
+            <span>4</span><span>8</span><span>12</span><span>16</span><span>20</span><span>0</span><span>4</span>
           </div>
         </div>
-        <div class="time-arrow-wrap">
-          <div class="time-wheel-label" aria-hidden="true">&nbsp;</div>
-          <div class="time-arrow">→</div>
+        <div class="time-fine" id="tpFine" hidden>
+          <button type="button" class="time-fine-btn" id="tpFineMinus" aria-label="10分戻す">−</button>
+          <span class="time-fine-label" id="tpFineLabel">開始 09:30</span>
+          <button type="button" class="time-fine-btn" id="tpFinePlus" aria-label="10分進める">+</button>
         </div>
-        <div class="time-wheel-group">
-          <div class="time-wheel-label">終了</div>
-          <div class="time-wheels">
-            <div class="wheel" id="wheelEH"></div>
-            <div class="wheel-sep">:</div>
-            <div class="wheel" id="wheelEM"></div>
-          </div>
+        <div class="duration-chips" id="tpDurationChips" role="group" aria-label="所要時間のプリセット">
+          <button type="button" class="duration-chip" data-dur="15">15分</button>
+          <button type="button" class="duration-chip" data-dur="30">30分</button>
+          <button type="button" class="duration-chip" data-dur="60">1時間</button>
+          <button type="button" class="duration-chip" data-dur="90">1時間30分</button>
+          <button type="button" class="duration-chip" data-dur="120">2時間</button>
+          <button type="button" class="duration-chip" data-dur="180">3時間</button>
         </div>
+        <div class="duration-hint" id="durationHint">1時間00分</div>
       </div>
-      <div class="duration-hint" id="durationHint">1時間00分</div>
     </div>
 
     <div class="modal-actions">
@@ -1268,135 +1370,220 @@ function updateContentSection() {
   document.getElementById('contentSection').style.display = '';
 }
 
-// ────── Wheel picker ──────
-const WHEEL_ITEM_H = 40;
-const wheelHandles = {};
+// ────── Time picker (dual-handle range slider on a 24h tape) ──────
+const TOTAL_MIN = DAY_END - DAY_START;
+const TRACK_PAD = 18; // matches CSS .time-track-others / .time-track-axis horizontal padding
 
-function makeWheel(el, items, onChange) {
-  el.innerHTML = '<div class="wheel-items">' +
-    items.map((v, i) => `<div class="wheel-item" data-i="${i}">${v}</div>`).join('') +
-    '</div>';
-  let suppressUntil = 0;
-  let rafId, endTimer;
-  const nodes = () => el.querySelectorAll('.wheel-item');
+const tpTrack       = document.getElementById('tpTrack');
+const tpFill        = document.getElementById('tpFill');
+const tpThumbStart  = document.getElementById('tpThumbStart');
+const tpThumbEnd    = document.getElementById('tpThumbEnd');
+const tpStartBtn    = document.getElementById('tpStartBtn');
+const tpEndBtn      = document.getElementById('tpEndBtn');
+const tpStartVal    = document.getElementById('tpStartVal');
+const tpEndVal      = document.getElementById('tpEndVal');
+const tpOthers      = document.getElementById('tpOthers');
+const tpFine        = document.getElementById('tpFine');
+const tpFineLabel   = document.getElementById('tpFineLabel');
+const tpFineMinus   = document.getElementById('tpFineMinus');
+const tpFinePlus    = document.getElementById('tpFinePlus');
+const tpDurChips    = document.getElementById('tpDurationChips');
 
-  function highlight(idx) {
-    nodes().forEach((it, i) => it.classList.toggle('selected', i === idx));
-  }
+let activeSide = null; // 'start' | 'end' | null — which side is being fine-tuned
 
-  function updateTransforms() {
-    // viewport center in scroll coordinates (top of viewport + half clientHeight)
-    // item i center sits at: padding(40) + i*40 + 20 = 60 + i*40
-    // distance from viewport center (in items) = ((60 + i*40) - (scrollTop + 60)) / 40 = i - scrollTop/40
-    const offset = el.scrollTop / WHEEL_ITEM_H;
-    nodes().forEach((it, i) => {
-      const d = i - offset; // signed distance in items (negative = above selection)
-      const ad = Math.abs(d);
-      const angle = Math.max(-72, Math.min(72, -d * 22));
-      const scale = Math.max(0.55, 1 - ad * 0.12);
-      const opacity = Math.max(0.18, 1 - ad * 0.32);
-      it.style.transform = `rotateX(${angle}deg) scale(${scale})`;
-      it.style.opacity = opacity;
-    });
-  }
+const clampStart = m => Math.max(DAY_START, Math.min(DAY_END - STEP, m));
+const clampEnd   = m => Math.max(DAY_START + STEP, Math.min(DAY_END, m));
 
-  el.addEventListener('scroll', () => {
-    cancelAnimationFrame(rafId);
-    rafId = requestAnimationFrame(() => {
-      const idx = Math.max(0, Math.min(items.length - 1, Math.round(el.scrollTop / WHEEL_ITEM_H)));
-      highlight(idx);
-      updateTransforms();
-    });
-    clearTimeout(endTimer);
-    endTimer = setTimeout(() => {
-      if (Date.now() < suppressUntil) return;
-      const idx = Math.max(0, Math.min(items.length - 1, Math.round(el.scrollTop / WHEEL_ITEM_H)));
-      onChange(idx);
-    }, 130);
-  });
-
-  el.addEventListener('click', (e) => {
-    const item = e.target.closest('.wheel-item');
-    if (!item) return;
-    const idx = parseInt(item.dataset.i, 10);
-    el.scrollTo({ top: idx * WHEEL_ITEM_H, behavior: 'smooth' });
-  });
-
-  // initial transform pass
-  requestAnimationFrame(updateTransforms);
-
-  return {
-    setIndex(idx) {
-      suppressUntil = Date.now() + 300;
-      el.scrollTop = idx * WHEEL_ITEM_H;
-      highlight(idx);
-      updateTransforms();
-    }
-  };
+function trackInnerWidth() {
+  return Math.max(1, tpTrack.clientWidth - TRACK_PAD * 2);
+}
+function minToOffsetPx(min) {
+  return TRACK_PAD + ((min - DAY_START) / TOTAL_MIN) * trackInnerWidth();
+}
+function clientXToMin(clientX) {
+  const rect = tpTrack.getBoundingClientRect();
+  let x = clientX - rect.left - TRACK_PAD;
+  const inner = rect.width - TRACK_PAD * 2;
+  if (x < 0) x = 0;
+  if (x > inner) x = inner;
+  return DAY_START + Math.round((x / inner) * TOTAL_MIN / STEP) * STEP;
 }
 
-function initWheels() {
-  // Start hour: 04..27 (max start = 27:50). End hour: 04..28 (so end can reach DAY_END = 28:00).
-  const startHourItems = Array.from({ length: 24 }, (_, i) => pad(i + 4));
-  const endHourItems = Array.from({ length: 25 }, (_, i) => pad(i + 4));
-  const minuteItems = ['00', '10', '20', '30', '40', '50'];
-  wheelHandles.sh = makeWheel(document.getElementById('wheelSH'), startHourItems, (idx) => {
-    startMin = (idx + 4) * 60 + (startMin % 60);
-    enforceOrder('start');
-    renderDuration();
-  });
-  wheelHandles.sm = makeWheel(document.getElementById('wheelSM'), minuteItems, (idx) => {
-    startMin = Math.floor(startMin / 60) * 60 + idx * 10;
-    enforceOrder('start');
-    renderDuration();
-  });
-  wheelHandles.eh = makeWheel(document.getElementById('wheelEH'), endHourItems, (idx) => {
-    const newHour = idx + 4;
-    if (newHour >= 28) {
-      // 28:xx is only valid as 28:00 — snap minute wheel and clamp.
-      endMin = DAY_END;
-      wheelHandles.em.setIndex(0);
-    } else {
-      endMin = newHour * 60 + (endMin % 60);
-    }
-    enforceOrder('end');
-    renderDuration();
-  });
-  wheelHandles.em = makeWheel(document.getElementById('wheelEM'), minuteItems, (idx) => {
-    const hour = Math.floor(endMin / 60);
-    if (hour >= 28) {
-      // hour wheel is parked on 28; minute must stay at 00.
-      endMin = DAY_END;
-      wheelHandles.em.setIndex(0);
-    } else {
-      endMin = hour * 60 + idx * 10;
-    }
-    enforceOrder('end');
-    renderDuration();
+function updateDurationChips() {
+  const dur = endMin - startMin;
+  tpDurChips.querySelectorAll('.duration-chip').forEach(c => {
+    c.classList.toggle('active', parseInt(c.dataset.dur, 10) === dur);
   });
 }
-
-function enforceOrder(which) {
-  if (endMin <= startMin) {
-    if (which === 'start') {
-      endMin = Math.min(DAY_END, startMin + STEP);
-      wheelHandles.eh.setIndex(Math.floor(endMin / 60) - 4);
-      wheelHandles.em.setIndex((endMin % 60) / 10);
-    } else {
-      startMin = Math.max(DAY_START, endMin - STEP);
-      wheelHandles.sh.setIndex(Math.floor(startMin / 60) - 4);
-      wheelHandles.sm.setIndex((startMin % 60) / 10);
-    }
-  }
+function updateFineLabel() {
+  if (!activeSide) return;
+  const m = activeSide === 'start' ? startMin : endMin;
+  tpFineLabel.textContent = `${activeSide === 'start' ? '開始' : '終了'} ${fmtTime(m)}`;
 }
 
-function syncAllWheelsFromState() {
-  wheelHandles.sh.setIndex(Math.floor(startMin / 60) - 4);
-  wheelHandles.sm.setIndex((startMin % 60) / 10);
-  wheelHandles.eh.setIndex(Math.floor(endMin / 60) - 4);
-  wheelHandles.em.setIndex((endMin % 60) / 10);
+function refreshPicker() {
+  // Snap to STEP and re-clamp so any path (drag/chip/fine/init) ends up valid.
+  startMin = clampStart(Math.round(startMin / STEP) * STEP);
+  endMin   = clampEnd(Math.round(endMin / STEP) * STEP);
+  if (endMin <= startMin) endMin = Math.min(DAY_END, startMin + STEP);
+  if (startMin >= endMin) startMin = Math.max(DAY_START, endMin - STEP);
+
+  const sX = minToOffsetPx(startMin);
+  const eX = minToOffsetPx(endMin);
+  tpThumbStart.style.left = sX + 'px';
+  tpThumbEnd.style.left   = eX + 'px';
+  tpFill.style.left  = sX + 'px';
+  tpFill.style.width = Math.max(0, eX - sX) + 'px';
+
+  tpStartVal.textContent = fmtTime(startMin);
+  tpEndVal.textContent   = fmtTime(endMin);
+  tpThumbStart.setAttribute('aria-valuenow', startMin);
+  tpThumbStart.setAttribute('aria-valuetext', fmtTime(startMin));
+  tpThumbEnd.setAttribute('aria-valuenow', endMin);
+  tpThumbEnd.setAttribute('aria-valuetext', fmtTime(endMin));
+
   renderDuration();
+  updateDurationChips();
+  updateFineLabel();
 }
+
+function renderTrackOthers() {
+  tpOthers.innerHTML = '';
+  for (const ev of events) {
+    if (ev.id === editingId) continue;
+    const left = ((ev.startMin - DAY_START) / TOTAL_MIN) * 100;
+    const width = ((ev.endMin - ev.startMin) / TOTAL_MIN) * 100;
+    if (width <= 0) continue;
+    const t = TEMPLATE_MAP[ev.templateId];
+    const seg = document.createElement('div');
+    seg.className = 'time-track-other';
+    seg.style.left = left + '%';
+    seg.style.width = width + '%';
+    if (t) seg.style.background = t.color;
+    tpOthers.appendChild(seg);
+  }
+}
+
+function setActiveSide(side) {
+  activeSide = side;
+  tpStartBtn.classList.toggle('active', side === 'start');
+  tpEndBtn.classList.toggle('active', side === 'end');
+  tpThumbStart.classList.toggle('active', side === 'start');
+  tpThumbEnd.classList.toggle('active', side === 'end');
+  tpFine.hidden = !side;
+  updateFineLabel();
+}
+
+function nudgeActive(delta) {
+  if (!activeSide) return;
+  if (activeSide === 'start') {
+    startMin = clampStart(startMin + delta);
+    if (startMin >= endMin) endMin = clampEnd(startMin + STEP);
+  } else {
+    endMin = clampEnd(endMin + delta);
+    if (endMin <= startMin) startMin = clampStart(endMin - STEP);
+  }
+  refreshPicker();
+}
+
+// Drag interaction
+function onTrackPointerDown(e) {
+  const isStart = e.target === tpThumbStart;
+  const isEnd   = e.target === tpThumbEnd;
+
+  let side;
+  if (isStart) side = 'start';
+  else if (isEnd) side = 'end';
+  else {
+    // Tap empty track → grab the nearer thumb and seek to that minute
+    const m = clientXToMin(e.clientX);
+    side = Math.abs(m - startMin) <= Math.abs(m - endMin) ? 'start' : 'end';
+    if (side === 'start') {
+      startMin = clampStart(m);
+      if (startMin >= endMin) endMin = clampEnd(startMin + STEP);
+    } else {
+      endMin = clampEnd(m);
+      if (endMin <= startMin) startMin = clampStart(endMin - STEP);
+    }
+    refreshPicker();
+  }
+  setActiveSide(side);
+
+  e.preventDefault();
+  const thumb = side === 'start' ? tpThumbStart : tpThumbEnd;
+  thumb.classList.add('dragging');
+  try { thumb.setPointerCapture(e.pointerId); } catch (_) {}
+  if (navigator.vibrate) navigator.vibrate(8);
+
+  const onMove = (ev) => {
+    const m = clientXToMin(ev.clientX);
+    if (side === 'start') {
+      startMin = clampStart(m);
+      if (startMin >= endMin) startMin = clampStart(endMin - STEP);
+    } else {
+      endMin = clampEnd(m);
+      if (endMin <= startMin) endMin = clampEnd(startMin + STEP);
+    }
+    refreshPicker();
+  };
+  const onUp = () => {
+    thumb.classList.remove('dragging');
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+    document.removeEventListener('pointercancel', onUp);
+  };
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup', onUp);
+  document.addEventListener('pointercancel', onUp);
+}
+
+tpTrack.addEventListener('pointerdown', onTrackPointerDown);
+
+// Time-display buttons: toggle focus on a side
+tpStartBtn.addEventListener('click', () => setActiveSide(activeSide === 'start' ? null : 'start'));
+tpEndBtn.addEventListener('click',   () => setActiveSide(activeSide === 'end'   ? null : 'end'));
+
+// Fine adjustment ±10 min
+tpFineMinus.addEventListener('click', () => nudgeActive(-STEP));
+tpFinePlus.addEventListener('click',  () => nudgeActive(+STEP));
+
+// Duration presets — anchor on current start; shift back if it would overflow
+tpDurChips.addEventListener('click', (e) => {
+  const chip = e.target.closest('.duration-chip');
+  if (!chip) return;
+  const d = parseInt(chip.dataset.dur, 10);
+  let s = startMin;
+  let n = s + d;
+  if (n > DAY_END) { n = DAY_END; s = clampStart(n - d); }
+  startMin = s; endMin = n;
+  refreshPicker();
+});
+
+// Keyboard a11y on thumbs
+[tpThumbStart, tpThumbEnd].forEach(thumb => {
+  thumb.addEventListener('keydown', (e) => {
+    let delta = 0;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') delta = -STEP;
+    else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') delta = +STEP;
+    else if (e.key === 'PageDown') delta = -60;
+    else if (e.key === 'PageUp')   delta = +60;
+    else return;
+    e.preventDefault();
+    setActiveSide(thumb === tpThumbStart ? 'start' : 'end');
+    nudgeActive(delta);
+  });
+});
+
+function syncPickerFromState() {
+  setActiveSide(null);
+  renderTrackOthers();
+  refreshPicker();
+}
+
+// Recompute thumb positions on viewport resize/rotation while the modal is open.
+window.addEventListener('resize', () => {
+  if (modalBackdrop && modalBackdrop.classList.contains('active')) refreshPicker();
+});
 
 function showError(msg) { errorMsg.textContent = msg; errorMsg.classList.add('show'); }
 function clearError() { errorMsg.classList.remove('show'); }
@@ -1435,7 +1622,7 @@ function openAdd(presetStart) {
   updateContentSection();
   renderSuggestions();
   modalBackdrop.classList.add('active');
-  requestAnimationFrame(syncAllWheelsFromState);
+  requestAnimationFrame(syncPickerFromState);
 }
 
 function openEdit(id) {
@@ -1453,7 +1640,7 @@ function openEdit(id) {
   updateContentSection();
   renderSuggestions();
   modalBackdrop.classList.add('active');
-  requestAnimationFrame(syncAllWheelsFromState);
+  requestAnimationFrame(syncPickerFromState);
 }
 
 function closeModal() {
@@ -1657,7 +1844,6 @@ routineBackdrop.addEventListener('click', closeRoutineSheet);
 // ────── Init ──────
 load();
 loadRoutines();
-initWheels();
 renderAll();
 
 // update now line every minute — skip if dragging so we don't detach the card
