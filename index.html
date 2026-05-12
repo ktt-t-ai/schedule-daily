@@ -1,0 +1,1683 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f8f6f1">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="今日の予定">
+<meta name="description" content="今日の予定をシンプルに管理するタイムラインアプリ">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<title>今日の予定</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: oklch(0.98 0.006 80);
+  --surface: oklch(0.995 0.003 80);
+  --surface-2: oklch(0.955 0.006 80);
+  --text: oklch(0.22 0.012 80);
+  --text-muted: oklch(0.52 0.012 80);
+  --text-faint: oklch(0.68 0.008 80);
+  --border: oklch(0.9 0.006 80);
+  --border-strong: oklch(0.82 0.008 80);
+  --accent: oklch(0.6 0.2 28);
+  --shadow-fab: 0 6px 20px rgba(40, 30, 20, 0.18), 0 2px 4px rgba(40, 30, 20, 0.08);
+
+  --c-work:     oklch(0.55 0.13 240); --c-work-bg:     oklch(0.95 0.04 240);
+  --c-study:    oklch(0.55 0.16 290); --c-study-bg:    oklch(0.95 0.04 290);
+  --c-meal:     oklch(0.62 0.14 60);  --c-meal-bg:     oklch(0.95 0.05 60);
+  --c-exercise: oklch(0.58 0.13 145); --c-exercise-bg: oklch(0.95 0.04 145);
+  --c-sleep:    oklch(0.48 0.1 270);  --c-sleep-bg:    oklch(0.95 0.03 270);
+  --c-commute:  oklch(0.58 0.1 200);  --c-commute-bg:  oklch(0.95 0.03 200);
+  --c-break:    oklch(0.65 0.13 20);  --c-break-bg:    oklch(0.95 0.04 20);
+  --c-hobby:    oklch(0.62 0.15 340); --c-hobby-bg:    oklch(0.95 0.04 340);
+  --c-other:    oklch(0.55 0.02 80);  --c-other-bg:    oklch(0.93 0.008 80);
+
+  --hour-h: 80px;
+  --time-col: 52px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Zen Kaku Gothic New", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: contain;
+}
+
+body { min-height: 100dvh; padding-bottom: env(safe-area-inset-bottom); }
+body.dragging-active {
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+}
+
+.app {
+  max-width: 480px;
+  margin: 0 auto;
+  padding-bottom: 120px;
+  position: relative;
+}
+
+/* ───── Header ───── */
+header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: color-mix(in oklch, var(--bg) 88%, transparent);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 18px 0;
+}
+.header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.title-block { display: flex; flex-direction: column; gap: 2px; }
+.header-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.title {
+  font-weight: 700;
+  font-size: 19px;
+  letter-spacing: -0.015em;
+}
+.date {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+.reset-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  padding: 9px 14px;
+  min-height: 36px;
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.04em;
+  transition: all 0.15s;
+}
+.reset-btn:active { background: var(--surface-2); transform: scale(0.96); }
+.reset-btn:disabled { opacity: 0.35; cursor: default; }
+
+.stack-bar {
+  display: flex;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--surface-2);
+  margin: 12px 0 0;
+  border: 1px solid var(--border);
+}
+.stack-bar:empty { display: none; }
+.stack-bar-seg { height: 100%; }
+.stack-bar-seg.gap { background: transparent; }
+
+.summary {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 12px 0 14px;
+  scrollbar-width: none;
+  margin: 0 -2px;
+}
+.summary::-webkit-scrollbar { display: none; }
+.summary-empty {
+  font-size: 11px;
+  color: var(--text-faint);
+  padding: 4px 0;
+  font-style: italic;
+}
+.chip {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px 5px 9px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.chip-time {
+  font-family: "JetBrains Mono", monospace;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+/* ───── Timeline ───── */
+.timeline {
+  padding: 16px 18px 20px;
+}
+.timeline-grid {
+  position: relative;
+  margin-left: var(--time-col);
+}
+.hour-row {
+  position: relative;
+  height: var(--hour-h);
+  border-top: 1px solid var(--border);
+}
+.hour-row::before {
+  content: attr(data-time);
+  position: absolute;
+  left: calc(var(--time-col) * -1);
+  top: -7px;
+  width: calc(var(--time-col) - 12px);
+  text-align: right;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  color: var(--text-faint);
+  letter-spacing: 0.04em;
+  font-weight: 500;
+}
+.hour-row:first-child::before { top: 0; }
+.hour-row::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  right: 0;
+  border-top: 1px dashed color-mix(in oklch, var(--border) 60%, transparent);
+}
+.hour-row.day-boundary {
+  border-top-color: var(--border-strong);
+}
+.hour-row.day-boundary::before {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.event {
+  position: absolute;
+  border-radius: 10px;
+  padding: 7px 11px;
+  cursor: pointer;
+  overflow: hidden;
+  border-left: 3px solid;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  z-index: 2;
+}
+.event:active {
+  transform: scale(0.985);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.event-label {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.005em;
+}
+.event-time {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  opacity: 0.75;
+  margin-top: 2px;
+  font-weight: 500;
+}
+.event.compact { padding: 4px 11px; justify-content: center; }
+.event.compact .event-label { font-size: 12px; }
+.event.compact .event-time { display: none; }
+.event.tiny { padding: 2px 11px; }
+.event.tiny .event-label { font-size: 11px; font-weight: 500; }
+.event.tiny .event-time { display: none; }
+.event.dragging {
+  z-index: 50;
+  transform: scale(1.025);
+  box-shadow: 0 10px 24px rgba(20, 16, 12, 0.18), 0 2px 6px rgba(20, 16, 12, 0.08);
+  opacity: 0.96;
+  transition: none;
+  cursor: grabbing;
+  touch-action: none;
+}
+.event.dragging .event-time {
+  display: block;
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+.now-line {
+  position: absolute;
+  left: calc(var(--time-col) * -1);
+  right: 0;
+  height: 0;
+  border-top: 1.5px solid var(--accent);
+  z-index: 4;
+  pointer-events: none;
+}
+.now-line::before {
+  content: "";
+  position: absolute;
+  left: var(--time-col);
+  top: -4px;
+  width: 7px;
+  height: 7px;
+  background: var(--accent);
+  border-radius: 50%;
+  transform: translateX(-50%);
+}
+.now-line::after {
+  content: attr(data-time);
+  position: absolute;
+  left: 0;
+  top: -7px;
+  width: calc(var(--time-col) - 12px);
+  text-align: right;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  color: var(--accent);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.empty-state {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 12px;
+  pointer-events: none;
+  letter-spacing: 0.02em;
+  padding: 8px 12px;
+  background: color-mix(in oklch, var(--surface) 80%, transparent);
+  border: 1px dashed var(--border-strong);
+  border-radius: 10px;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* ───── FAB ───── */
+.fab {
+  position: fixed;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(calc(240px - 36px - 24px));
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--text);
+  color: var(--bg);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  box-shadow: var(--shadow-fab);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.fab svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+.fab:active { transform: translateX(calc(240px - 36px - 24px)) scale(0.9); }
+@media (max-width: 528px) {
+  .fab { transform: none; right: 24px; left: auto; }
+  .fab:active { transform: scale(0.9); }
+}
+
+/* ───── Modal ───── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 18, 14, 0.42);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 100;
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fadeIn 0.2s ease;
+}
+.modal-backdrop.active { display: flex; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.modal {
+  background: var(--surface);
+  width: 100%;
+  max-width: 480px;
+  border-radius: 22px 22px 0 0;
+  padding: 10px 20px calc(22px + env(safe-area-inset-bottom));
+  max-height: 92dvh;
+  overflow-y: auto;
+  animation: slideUp 0.26s cubic-bezier(0.2, 0.85, 0.25, 1);
+}
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.modal-handle {
+  width: 36px;
+  height: 4px;
+  background: var(--border-strong);
+  border-radius: 999px;
+  margin: 0 auto 14px;
+}
+.modal-title {
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  letter-spacing: -0.01em;
+}
+.modal-section { margin-bottom: 20px; }
+.modal-section-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 10px;
+  font-weight: 600;
+  font-family: "JetBrains Mono", monospace;
+}
+
+/* Template grid */
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.template-btn {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  padding: 13px 4px;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  transition: all 0.15s ease;
+}
+.template-btn:active { transform: scale(0.95); }
+.template-btn.selected {
+  border-color: var(--text);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--text);
+}
+.template-icon { font-size: 22px; line-height: 1; }
+
+/* Time wheel picker */
+.time-wheel-row {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  background: var(--surface-2);
+  border-radius: 14px;
+  padding: 12px 8px 14px;
+}
+.time-wheel-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.time-wheel-label {
+  font-size: 9px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+  font-family: "JetBrains Mono", monospace;
+  height: 12px;
+  line-height: 12px;
+}
+.time-wheels {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+.time-wheels::before,
+.time-wheels::after {
+  content: "";
+  position: absolute;
+  left: -6px;
+  right: -6px;
+  height: 1px;
+  background: var(--border-strong);
+  pointer-events: none;
+  z-index: 3;
+}
+.time-wheels::before { top: 40px; }
+.time-wheels::after { top: 80px; }
+.wheel {
+  height: 120px;
+  width: 44px;
+  overflow-y: scroll;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  mask-image: linear-gradient(to bottom, transparent 0%, black 28%, black 72%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 28%, black 72%, transparent 100%);
+  border-radius: 4px;
+  overscroll-behavior: contain;
+  perspective: 600px;
+}
+.wheel::-webkit-scrollbar { display: none; }
+.wheel-items {
+  padding: 40px 0;
+  transform-style: preserve-3d;
+}
+.wheel-item {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 19px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+  cursor: pointer;
+  user-select: none;
+  transform-origin: center center;
+  backface-visibility: hidden;
+  will-change: transform, opacity;
+  transition: color 0.12s, font-weight 0.12s;
+}
+.wheel-item.selected {
+  color: var(--text);
+  font-weight: 600;
+}
+.wheel-sep {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 19px;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding: 0 2px;
+  transform: translateY(-1px);
+}
+.time-arrow-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.time-arrow {
+  color: var(--text-faint);
+  font-size: 16px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+}
+
+/* Content input (study only) */
+.content-input {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: 16px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.content-input:focus {
+  border-color: var(--text);
+  background: var(--surface);
+}
+.content-input::placeholder {
+  color: var(--text-faint);
+}
+
+/* Suggestion chips */
+.suggestion-chips {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 6px;
+  margin-top: 8px;
+  scrollbar-width: none;
+}
+.suggestion-chips::-webkit-scrollbar { display: none; }
+.suggestion-chips:empty { margin-top: 0; }
+.suggestion-chip {
+  flex-shrink: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 11px;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+  transition: all 0.12s;
+}
+.suggestion-chip:active {
+  background: var(--surface-2);
+  transform: scale(0.96);
+}
+.duration-hint {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: "JetBrains Mono", monospace;
+  margin-top: 10px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+.duration-hint.error { color: var(--accent); }
+
+/* Buttons */
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.btn {
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: none;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  transition: opacity 0.12s, transform 0.12s;
+}
+.btn:active { transform: scale(0.98); opacity: 0.88; }
+.btn-primary {
+  flex: 1;
+  background: var(--text);
+  color: var(--bg);
+}
+.btn-secondary {
+  flex: 1;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.btn-danger {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid color-mix(in oklch, var(--accent) 35%, var(--border));
+  padding: 14px 16px;
+  flex: 0 0 auto;
+}
+
+/* Routine sheet */
+.save-routine-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px;
+  margin-bottom: 14px;
+}
+.routine-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+.routine-empty {
+  text-align: center;
+  padding: 24px 16px;
+  color: var(--text-faint);
+  font-size: 12px;
+  font-style: italic;
+}
+.routine-row {
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  gap: 8px;
+}
+.routine-info {
+  flex: 1;
+  min-width: 0;
+}
+.routine-name {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.routine-meta {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: "JetBrains Mono", monospace;
+  margin-top: 2px;
+  letter-spacing: 0.02em;
+}
+.routine-icon-btn {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-family: inherit;
+  flex-shrink: 0;
+  padding: 0;
+}
+.routine-icon-btn:active { background: var(--border); transform: scale(0.94); }
+.routine-icon-btn.primary {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+  width: auto;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.routine-icon-btn.primary:active { background: var(--text-muted); }
+.routine-icon-btn svg { width: 16px; height: 16px; }
+
+.error-msg {
+  background: color-mix(in oklch, var(--accent) 9%, transparent);
+  color: oklch(0.42 0.18 28);
+  padding: 9px 12px;
+  border-radius: 9px;
+  font-size: 12px;
+  margin-bottom: 12px;
+  display: none;
+  font-weight: 500;
+}
+.error-msg.show { display: block; }
+
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="header-row">
+      <div class="title-block">
+        <div class="title">今日の予定</div>
+        <div class="date" id="todayDate"></div>
+      </div>
+      <div class="header-actions">
+        <button class="reset-btn" id="routineBtn">ルーティン</button>
+        <button class="reset-btn" id="resetBtn">リセット</button>
+      </div>
+    </div>
+    <div class="stack-bar" id="stackBar"></div>
+    <div class="summary" id="summary"></div>
+  </header>
+
+  <div class="timeline">
+    <div class="timeline-grid" id="grid"></div>
+  </div>
+</div>
+
+<button class="fab" id="fab" aria-label="予定を追加"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal" id="modal" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modalTitle">予定を追加</div>
+    <div class="error-msg" id="errorMsg"></div>
+
+    <div class="modal-section">
+      <div class="modal-section-label">ジャンル</div>
+      <div class="template-grid" id="templateGrid"></div>
+    </div>
+
+    <div class="modal-section" id="contentSection">
+      <div class="modal-section-label">内容（任意）</div>
+      <input type="text" id="contentInput" class="content-input" placeholder="例：英語の長文、ジムで脚トレ、ミーティング" maxlength="40" autocomplete="off">
+      <div class="suggestion-chips" id="suggestionChips"></div>
+    </div>
+
+    <div class="modal-section">
+      <div class="modal-section-label">時間</div>
+      <div class="time-wheel-row">
+        <div class="time-wheel-group">
+          <div class="time-wheel-label">開始</div>
+          <div class="time-wheels">
+            <div class="wheel" id="wheelSH"></div>
+            <div class="wheel-sep">:</div>
+            <div class="wheel" id="wheelSM"></div>
+          </div>
+        </div>
+        <div class="time-arrow-wrap">
+          <div class="time-wheel-label" aria-hidden="true">&nbsp;</div>
+          <div class="time-arrow">→</div>
+        </div>
+        <div class="time-wheel-group">
+          <div class="time-wheel-label">終了</div>
+          <div class="time-wheels">
+            <div class="wheel" id="wheelEH"></div>
+            <div class="wheel-sep">:</div>
+            <div class="wheel" id="wheelEM"></div>
+          </div>
+        </div>
+      </div>
+      <div class="duration-hint" id="durationHint">1時間00分</div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="cancelBtn">キャンセル</button>
+      <button class="btn btn-danger" id="deleteBtn" style="display:none">削除</button>
+      <button class="btn btn-primary" id="saveBtn">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="routineBackdrop">
+  <div class="modal" id="routineSheet" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title">ルーティン</div>
+    <button class="btn btn-secondary save-routine-btn" id="saveRoutineBtn">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <span>現在の予定を保存</span>
+    </button>
+    <div class="routine-list" id="routineList"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="routineCloseBtn" style="flex:1">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ────── Templates ──────
+const TEMPLATES = [
+  { id: 'work',     label: '仕事',   icon: '💼', color: 'var(--c-work)',     bg: 'var(--c-work-bg)' },
+  { id: 'study',    label: '勉強',   icon: '📚', color: 'var(--c-study)',    bg: 'var(--c-study-bg)' },
+  { id: 'meal',     label: '食事',   icon: '🍱', color: 'var(--c-meal)',     bg: 'var(--c-meal-bg)' },
+  { id: 'exercise', label: '運動',   icon: '🏃', color: 'var(--c-exercise)', bg: 'var(--c-exercise-bg)' },
+  { id: 'sleep',    label: '睡眠',   icon: '🌙', color: 'var(--c-sleep)',    bg: 'var(--c-sleep-bg)' },
+  { id: 'commute',  label: '移動',   icon: '🚃', color: 'var(--c-commute)',  bg: 'var(--c-commute-bg)' },
+  { id: 'break',    label: '休憩',   icon: '☕', color: 'var(--c-break)',    bg: 'var(--c-break-bg)' },
+  { id: 'hobby',    label: '趣味',   icon: '🎨', color: 'var(--c-hobby)',    bg: 'var(--c-hobby-bg)' },
+  { id: 'other',    label: 'その他', icon: '✦',  color: 'var(--c-other)',    bg: 'var(--c-other-bg)' },
+];
+const TEMPLATE_MAP = Object.fromEntries(TEMPLATES.map(t => [t.id, t]));
+
+const STORAGE_KEY = 'simple-schedule-v1';
+const STEP = 10;
+const HOUR_PX = 80;
+const DAY_START = 4 * 60;    // 04:00 = 240
+const DAY_END = 28 * 60;     // 翌04:00 = 1680
+const DAY_OFFSET = 24 * 60;  // 1440
+
+// ────── State ──────
+let events = [];
+let editingId = null;
+let selectedTemplate = null;
+let startMin = 9 * 60;
+let endMin = 10 * 60;
+
+// ────── Storage ──────
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      events = JSON.parse(raw) || [];
+      // Migration: old data stored as 0-1440 (midnight-based).
+      // Shift events starting before 04:00 into the 24-28h range.
+      let migrated = false;
+      for (const e of events) {
+        if (e.startMin < DAY_START) {
+          e.startMin += DAY_OFFSET;
+          e.endMin += DAY_OFFSET;
+          if (e.endMin > DAY_END) e.endMin = DAY_END;
+          migrated = true;
+        }
+      }
+      if (migrated) persist();
+    }
+  } catch (e) { events = []; }
+}
+function persist() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(events)); } catch (e) {}
+}
+
+// ────── Utils ──────
+const pad = n => String(n).padStart(2, '0');
+function fmtTime(min) {
+  const h = Math.floor(min / 60);
+  return `${pad(h)}:${pad(min % 60)}`;
+}
+function fmtDuration(min) {
+  const h = Math.floor(min / 60), m = min % 60;
+  if (h === 0) return `${m}分`;
+  if (m === 0) return `${h}時間`;
+  return `${h}時間${pad(m)}分`;
+}
+function uid() { return Math.random().toString(36).slice(2, 10); }
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function fmtDate(d) {
+  const days = ['日', '月', '火', '水', '木', '金', '土'];
+  return `${d.getFullYear()}.${pad(d.getMonth()+1)}.${pad(d.getDate())} ${days[d.getDay()]}`;
+}
+
+// ────── Render ──────
+function renderHeader() {
+  document.getElementById('todayDate').textContent = fmtDate(new Date());
+  document.getElementById('resetBtn').disabled = events.length === 0;
+}
+
+function renderSummary() {
+  const totals = {};
+  for (const e of events) {
+    totals[e.templateId] = (totals[e.templateId] || 0) + (e.endMin - e.startMin);
+  }
+  const el = document.getElementById('summary');
+  const entries = Object.entries(totals).sort((a, b) => b[1] - a[1]);
+  if (entries.length === 0) {
+    el.innerHTML = '<div class="summary-empty">まだ予定がありません</div>';
+    return;
+  }
+  el.innerHTML = entries.map(([tid, mins]) => {
+    const t = TEMPLATE_MAP[tid];
+    return `<span class="chip">
+      <span class="chip-dot" style="background:${t.color}"></span>
+      ${t.label}
+      <span class="chip-time">${fmtDuration(mins)}</span>
+    </span>`;
+  }).join('');
+}
+
+function renderStackBar() {
+  const el = document.getElementById('stackBar');
+  if (events.length === 0) { el.innerHTML = ''; return; }
+  // Time-ordered segments. Overlaps: first event wins for visible portion.
+  const sorted = [...events].sort((a, b) => a.startMin - b.startMin);
+  const segs = [];
+  let cursor = DAY_START;
+  for (const ev of sorted) {
+    const evStart = Math.max(cursor, ev.startMin);
+    const evEnd = Math.max(evStart, ev.endMin);
+    if (ev.startMin > cursor) {
+      segs.push({ from: cursor, to: ev.startMin, color: null });
+    }
+    if (evEnd > evStart) {
+      const t = TEMPLATE_MAP[ev.templateId];
+      segs.push({ from: evStart, to: evEnd, color: t ? t.color : null });
+    }
+    cursor = Math.max(cursor, ev.endMin);
+  }
+  if (cursor < DAY_END) segs.push({ from: cursor, to: DAY_END, color: null });
+
+  const total = DAY_END - DAY_START;
+  el.innerHTML = segs.map(s => {
+    const w = ((s.to - s.from) / total) * 100;
+    if (w <= 0) return '';
+    return s.color
+      ? `<div class="stack-bar-seg" style="width:${w}%;background:${s.color}"></div>`
+      : `<div class="stack-bar-seg gap" style="width:${w}%"></div>`;
+  }).join('');
+}
+
+// ────── Drag / Resize ──────
+const LONG_PRESS_MS = 400;
+const RESIZE_EDGE_PX = 8;
+let activeDrag = null;
+
+function handleCardPointerDown(e, eventObj, card) {
+  const rect = card.getBoundingClientRect();
+  const relY = e.clientY - rect.top;
+  const canResize = rect.height > 24;
+  const onTop = canResize && relY < RESIZE_EDGE_PX;
+  const onBottom = canResize && relY > rect.height - RESIZE_EDGE_PX;
+
+  if (onTop || onBottom) {
+    e.preventDefault();
+    startDrag(onTop ? 'resize-top' : 'resize-bottom', e, eventObj, card);
+    return;
+  }
+
+  // Body: tap vs long-press
+  let cancelled = false;
+  let pressTimer = setTimeout(() => {
+    pressTimer = null;
+    if (cancelled) return;
+    startDrag('move', e, eventObj, card);
+  }, LONG_PRESS_MS);
+
+  const onMove = (ev) => {
+    if (Math.abs(ev.clientY - e.clientY) > 8 || Math.abs(ev.clientX - e.clientX) > 8) {
+      cancelled = true;
+      if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+      cleanup();
+    }
+  };
+  const onUp = () => {
+    if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+    cleanup();
+    if (!cancelled && !activeDrag) openEdit(eventObj.id);
+  };
+  const onCancel = () => {
+    cancelled = true;
+    if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+    cleanup();
+  };
+  const cleanup = () => {
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+    document.removeEventListener('pointercancel', onCancel);
+  };
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup', onUp);
+  document.addEventListener('pointercancel', onCancel);
+}
+
+function startDrag(type, e, eventObj, card) {
+  activeDrag = {
+    type, ev: eventObj, card, pointerId: e.pointerId,
+    startY: e.clientY,
+    origStart: eventObj.startMin,
+    origEnd: eventObj.endMin,
+  };
+  card.classList.add('dragging');
+  document.body.classList.add('dragging-active');
+  try { card.setPointerCapture(e.pointerId); } catch (_) {}
+  if (navigator.vibrate) navigator.vibrate(15);
+  document.addEventListener('pointermove', onDragMove, { passive: false });
+  document.addEventListener('pointerup', endDrag);
+  document.addEventListener('pointercancel', endDrag);
+}
+
+function onDragMove(e) {
+  if (!activeDrag) return;
+  e.preventDefault();
+  const dy = e.clientY - activeDrag.startY;
+  const dMin = Math.round((dy / HOUR_PX) * 60 / STEP) * STEP;
+  const { ev, type, origStart, origEnd } = activeDrag;
+
+  if (type === 'move') {
+    const dur = origEnd - origStart;
+    let s = origStart + dMin;
+    let n = origEnd + dMin;
+    if (s < DAY_START) { s = DAY_START; n = s + dur; }
+    if (n > DAY_END) { n = DAY_END; s = n - dur; }
+    ev.startMin = s; ev.endMin = n;
+  } else if (type === 'resize-top') {
+    let s = origStart + dMin;
+    if (s < DAY_START) s = DAY_START;
+    if (s > origEnd - STEP) s = origEnd - STEP;
+    ev.startMin = s;
+  } else {
+    let n = origEnd + dMin;
+    if (n > DAY_END) n = DAY_END;
+    if (n < origStart + STEP) n = origStart + STEP;
+    ev.endMin = n;
+  }
+
+  const top = ((ev.startMin - DAY_START) / 60) * HOUR_PX;
+  const height = Math.max(20, (ev.endMin - ev.startMin) / 60 * HOUR_PX - 2);
+  activeDrag.card.style.top = top + 'px';
+  activeDrag.card.style.height = height + 'px';
+  const timeEl = activeDrag.card.querySelector('.event-time');
+  if (timeEl) timeEl.textContent = `${fmtTime(ev.startMin)} – ${fmtTime(ev.endMin)}`;
+}
+
+function endDrag() {
+  if (!activeDrag) return;
+  const { card, pointerId } = activeDrag;
+  card.classList.remove('dragging');
+  document.body.classList.remove('dragging-active');
+  try { card.releasePointerCapture(pointerId); } catch (_) {}
+  document.removeEventListener('pointermove', onDragMove);
+  document.removeEventListener('pointerup', endDrag);
+  document.removeEventListener('pointercancel', endDrag);
+  activeDrag = null;
+  events.sort((a, b) => a.startMin - b.startMin);
+  persist();
+  renderAll();
+}
+
+function assignColumns(evs) {
+  if (evs.length === 0) return new Map();
+  const sorted = [...evs].sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
+  const positions = new Map();
+
+  let cluster = [];
+  let clusterEnd = -Infinity;
+
+  function finalize(c) {
+    const colEnd = [];
+    let maxCol = 0;
+    for (const e of c) {
+      let col = 0;
+      while (col < colEnd.length && colEnd[col] > e.startMin) col++;
+      colEnd[col] = e.endMin;
+      if (col > maxCol) maxCol = col;
+      positions.set(e.id, { col, totalCols: 0 });
+    }
+    const totalCols = maxCol + 1;
+    for (const e of c) positions.get(e.id).totalCols = totalCols;
+  }
+
+  for (const ev of sorted) {
+    if (ev.startMin >= clusterEnd) {
+      if (cluster.length > 0) finalize(cluster);
+      cluster = [];
+      clusterEnd = ev.endMin;
+    } else {
+      clusterEnd = Math.max(clusterEnd, ev.endMin);
+    }
+    cluster.push(ev);
+  }
+  if (cluster.length > 0) finalize(cluster);
+  return positions;
+}
+
+function renderGrid() {
+  const grid = document.getElementById('grid');
+  let html = '';
+  for (let h = 4; h <= 27; h++) {
+    const cls = h === 24 ? 'hour-row day-boundary' : 'hour-row';
+    html += `<div class="${cls}" data-time="${pad(h)}:00"></div>`;
+  }
+  grid.innerHTML = html;
+
+  // overlap layout
+  const positions = assignColumns(events);
+
+  // events
+  for (const ev of events) {
+    const t = TEMPLATE_MAP[ev.templateId];
+    if (!t) continue;
+    const pos = positions.get(ev.id) || { col: 0, totalCols: 1 };
+    const top = ((ev.startMin - DAY_START) / 60) * HOUR_PX;
+    const dur = ev.endMin - ev.startMin;
+    const height = Math.max(20, (dur / 60) * HOUR_PX - 2);
+    const card = document.createElement('div');
+    let cls = 'event';
+    if (dur < 30) cls += ' tiny';
+    else if (dur < 50) cls += ' compact';
+    card.className = cls;
+    card.style.top = top + 'px';
+    card.style.height = height + 'px';
+    // column-based horizontal layout: % math with internal gap
+    const colW = 100 / pos.totalCols;
+    card.style.left = `calc(${pos.col * colW}% + 4px)`;
+    card.style.width = `calc(${colW}% - 6px)`;
+    card.style.background = t.bg;
+    card.style.borderLeftColor = t.color;
+    card.style.color = t.color;
+    const displayLabel = ev.content ? ev.content : t.label;
+    card.innerHTML = `
+      <div class="event-label">${escapeHtml(displayLabel)}</div>
+      <div class="event-time">${fmtTime(ev.startMin)} – ${fmtTime(ev.endMin)}</div>
+    `;
+    card.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      handleCardPointerDown(e, ev, card);
+    });
+    grid.appendChild(card);
+  }
+
+  // now line
+  const nowMin = currentNowMin();
+  const nowLine = document.createElement('div');
+  nowLine.className = 'now-line';
+  nowLine.style.top = (((nowMin - DAY_START) / 60) * HOUR_PX) + 'px';
+  nowLine.setAttribute('data-time', fmtTime(nowMin));
+  grid.appendChild(nowLine);
+
+  // empty state
+  if (events.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.textContent = '＋ボタンで予定を追加してみましょう';
+    empty.style.top = (((nowMin - DAY_START) / 60) * HOUR_PX + 24) + 'px';
+    grid.appendChild(empty);
+  }
+}
+
+function currentNowMin() {
+  const now = new Date();
+  const absMin = now.getHours() * 60 + now.getMinutes();
+  return absMin >= DAY_START ? absMin : absMin + DAY_OFFSET;
+}
+
+function updateNowLine() {
+  // Lightweight refresh that does NOT rebuild the grid — safe to call mid-drag
+  // (renderGrid wipes innerHTML, which would detach the dragged card).
+  const grid = document.getElementById('grid');
+  if (!grid) return;
+  const existing = grid.querySelector('.now-line');
+  if (existing) existing.remove();
+  const nowMin = currentNowMin();
+  const nowLine = document.createElement('div');
+  nowLine.className = 'now-line';
+  nowLine.style.top = (((nowMin - DAY_START) / 60) * HOUR_PX) + 'px';
+  nowLine.setAttribute('data-time', fmtTime(nowMin));
+  grid.appendChild(nowLine);
+}
+
+function renderAll() { renderHeader(); renderStackBar(); renderSummary(); renderGrid(); }
+
+// ────── Modal ──────
+const modalBackdrop = document.getElementById('modalBackdrop');
+const modalTitle = document.getElementById('modalTitle');
+const deleteBtn = document.getElementById('deleteBtn');
+const errorMsg = document.getElementById('errorMsg');
+
+function renderTemplateGrid() {
+  const el = document.getElementById('templateGrid');
+  el.innerHTML = TEMPLATES.map(t => `
+    <button type="button" class="template-btn${selectedTemplate === t.id ? ' selected' : ''}" data-id="${t.id}">
+      <span class="template-icon">${t.icon}</span>
+      <span>${t.label}</span>
+    </button>
+  `).join('');
+  el.querySelectorAll('.template-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedTemplate = btn.dataset.id;
+      renderTemplateGrid();
+      updateContentSection();
+      if (errorMsg.classList.contains('show')) clearError();
+    });
+  });
+}
+
+function renderDuration() {
+  const dur = endMin - startMin;
+  const hint = document.getElementById('durationHint');
+  if (dur <= 0) {
+    hint.textContent = '終了は開始より後にしてください';
+    hint.classList.add('error');
+  } else {
+    hint.textContent = fmtDuration(dur);
+    hint.classList.remove('error');
+  }
+}
+
+function renderSuggestions() {
+  const inputEl = document.getElementById('contentInput');
+  const wrap = document.getElementById('suggestionChips');
+  const prefix = inputEl.value.trim().toLowerCase();
+  const counts = new Map();
+  for (const ev of events) {
+    if (ev.content) counts.set(ev.content, (counts.get(ev.content) || 0) + 1);
+  }
+  let all = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
+  if (prefix) all = all.filter(([c]) => c.toLowerCase().startsWith(prefix) && c.toLowerCase() !== prefix);
+  const top5 = all.slice(0, 5).map(([c]) => c);
+  wrap.innerHTML = top5.map(s => `<button type="button" class="suggestion-chip">${escapeHtml(s)}</button>`).join('');
+  wrap.querySelectorAll('.suggestion-chip').forEach((chip, i) => {
+    chip.addEventListener('click', () => {
+      inputEl.value = top5[i];
+      renderSuggestions();
+      inputEl.focus();
+    });
+  });
+}
+
+function updateContentSection() {
+  // Always visible across all genres
+  document.getElementById('contentSection').style.display = '';
+}
+
+// ────── Wheel picker ──────
+const WHEEL_ITEM_H = 40;
+const wheelHandles = {};
+
+function makeWheel(el, items, onChange) {
+  el.innerHTML = '<div class="wheel-items">' +
+    items.map((v, i) => `<div class="wheel-item" data-i="${i}">${v}</div>`).join('') +
+    '</div>';
+  let suppressUntil = 0;
+  let rafId, endTimer;
+  const nodes = () => el.querySelectorAll('.wheel-item');
+
+  function highlight(idx) {
+    nodes().forEach((it, i) => it.classList.toggle('selected', i === idx));
+  }
+
+  function updateTransforms() {
+    // viewport center in scroll coordinates (top of viewport + half clientHeight)
+    // item i center sits at: padding(40) + i*40 + 20 = 60 + i*40
+    // distance from viewport center (in items) = ((60 + i*40) - (scrollTop + 60)) / 40 = i - scrollTop/40
+    const offset = el.scrollTop / WHEEL_ITEM_H;
+    nodes().forEach((it, i) => {
+      const d = i - offset; // signed distance in items (negative = above selection)
+      const ad = Math.abs(d);
+      const angle = Math.max(-72, Math.min(72, -d * 22));
+      const scale = Math.max(0.55, 1 - ad * 0.12);
+      const opacity = Math.max(0.18, 1 - ad * 0.32);
+      it.style.transform = `rotateX(${angle}deg) scale(${scale})`;
+      it.style.opacity = opacity;
+    });
+  }
+
+  el.addEventListener('scroll', () => {
+    cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(() => {
+      const idx = Math.max(0, Math.min(items.length - 1, Math.round(el.scrollTop / WHEEL_ITEM_H)));
+      highlight(idx);
+      updateTransforms();
+    });
+    clearTimeout(endTimer);
+    endTimer = setTimeout(() => {
+      if (Date.now() < suppressUntil) return;
+      const idx = Math.max(0, Math.min(items.length - 1, Math.round(el.scrollTop / WHEEL_ITEM_H)));
+      onChange(idx);
+    }, 130);
+  });
+
+  el.addEventListener('click', (e) => {
+    const item = e.target.closest('.wheel-item');
+    if (!item) return;
+    const idx = parseInt(item.dataset.i, 10);
+    el.scrollTo({ top: idx * WHEEL_ITEM_H, behavior: 'smooth' });
+  });
+
+  // initial transform pass
+  requestAnimationFrame(updateTransforms);
+
+  return {
+    setIndex(idx) {
+      suppressUntil = Date.now() + 300;
+      el.scrollTop = idx * WHEEL_ITEM_H;
+      highlight(idx);
+      updateTransforms();
+    }
+  };
+}
+
+function initWheels() {
+  // Start hour: 04..27 (max start = 27:50). End hour: 04..28 (so end can reach DAY_END = 28:00).
+  const startHourItems = Array.from({ length: 24 }, (_, i) => pad(i + 4));
+  const endHourItems = Array.from({ length: 25 }, (_, i) => pad(i + 4));
+  const minuteItems = ['00', '10', '20', '30', '40', '50'];
+  wheelHandles.sh = makeWheel(document.getElementById('wheelSH'), startHourItems, (idx) => {
+    startMin = (idx + 4) * 60 + (startMin % 60);
+    enforceOrder('start');
+    renderDuration();
+  });
+  wheelHandles.sm = makeWheel(document.getElementById('wheelSM'), minuteItems, (idx) => {
+    startMin = Math.floor(startMin / 60) * 60 + idx * 10;
+    enforceOrder('start');
+    renderDuration();
+  });
+  wheelHandles.eh = makeWheel(document.getElementById('wheelEH'), endHourItems, (idx) => {
+    const newHour = idx + 4;
+    if (newHour >= 28) {
+      // 28:xx is only valid as 28:00 — snap minute wheel and clamp.
+      endMin = DAY_END;
+      wheelHandles.em.setIndex(0);
+    } else {
+      endMin = newHour * 60 + (endMin % 60);
+    }
+    enforceOrder('end');
+    renderDuration();
+  });
+  wheelHandles.em = makeWheel(document.getElementById('wheelEM'), minuteItems, (idx) => {
+    const hour = Math.floor(endMin / 60);
+    if (hour >= 28) {
+      // hour wheel is parked on 28; minute must stay at 00.
+      endMin = DAY_END;
+      wheelHandles.em.setIndex(0);
+    } else {
+      endMin = hour * 60 + idx * 10;
+    }
+    enforceOrder('end');
+    renderDuration();
+  });
+}
+
+function enforceOrder(which) {
+  if (endMin <= startMin) {
+    if (which === 'start') {
+      endMin = Math.min(DAY_END, startMin + STEP);
+      wheelHandles.eh.setIndex(Math.floor(endMin / 60) - 4);
+      wheelHandles.em.setIndex((endMin % 60) / 10);
+    } else {
+      startMin = Math.max(DAY_START, endMin - STEP);
+      wheelHandles.sh.setIndex(Math.floor(startMin / 60) - 4);
+      wheelHandles.sm.setIndex((startMin % 60) / 10);
+    }
+  }
+}
+
+function syncAllWheelsFromState() {
+  wheelHandles.sh.setIndex(Math.floor(startMin / 60) - 4);
+  wheelHandles.sm.setIndex((startMin % 60) / 10);
+  wheelHandles.eh.setIndex(Math.floor(endMin / 60) - 4);
+  wheelHandles.em.setIndex((endMin % 60) / 10);
+  renderDuration();
+}
+
+function showError(msg) { errorMsg.textContent = msg; errorMsg.classList.add('show'); }
+function clearError() { errorMsg.classList.remove('show'); }
+
+function smartDefaultStart() {
+  const now = new Date();
+  const absMin = now.getHours() * 60 + now.getMinutes();
+  const nowExt = absMin >= DAY_START ? absMin : absMin + DAY_OFFSET;
+
+  // Use most recent event end that finished within past 2 hours
+  let candidate = null;
+  for (const ev of events) {
+    if (ev.endMin <= nowExt && nowExt - ev.endMin <= 120) {
+      if (candidate === null || ev.endMin > candidate) candidate = ev.endMin;
+    }
+  }
+  const start = candidate !== null ? candidate : Math.floor(nowExt / STEP) * STEP;
+  return Math.max(DAY_START, Math.min(DAY_END - STEP, start));
+}
+
+function openAdd(presetStart) {
+  editingId = null;
+  selectedTemplate = null;
+  document.getElementById('contentInput').value = '';
+  if (typeof presetStart === 'number') {
+    startMin = presetStart;
+  } else {
+    startMin = smartDefaultStart();
+  }
+  endMin = Math.min(DAY_END, startMin + 60);
+  if (endMin <= startMin) endMin = startMin + STEP;
+  modalTitle.textContent = '予定を追加';
+  deleteBtn.style.display = 'none';
+  clearError();
+  renderTemplateGrid();
+  updateContentSection();
+  renderSuggestions();
+  modalBackdrop.classList.add('active');
+  requestAnimationFrame(syncAllWheelsFromState);
+}
+
+function openEdit(id) {
+  const ev = events.find(e => e.id === id);
+  if (!ev) return;
+  editingId = id;
+  selectedTemplate = ev.templateId;
+  startMin = ev.startMin;
+  endMin = ev.endMin;
+  document.getElementById('contentInput').value = ev.content || '';
+  modalTitle.textContent = '予定を編集';
+  deleteBtn.style.display = 'block';
+  clearError();
+  renderTemplateGrid();
+  updateContentSection();
+  renderSuggestions();
+  modalBackdrop.classList.add('active');
+  requestAnimationFrame(syncAllWheelsFromState);
+}
+
+function closeModal() {
+  modalBackdrop.classList.remove('active');
+  modalBackdrop.style.bottom = '';
+}
+
+// Keyboard adaptation via visualViewport (iOS Safari, Android Chrome)
+(function setupKeyboardAdapt() {
+  if (!window.visualViewport) return;
+  function adjust() {
+    if (!modalBackdrop.classList.contains('active')) {
+      modalBackdrop.style.bottom = '';
+      return;
+    }
+    const vv = window.visualViewport;
+    const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    modalBackdrop.style.bottom = kb + 'px';
+  }
+  window.visualViewport.addEventListener('resize', adjust);
+  window.visualViewport.addEventListener('scroll', adjust);
+})();
+
+document.getElementById('contentInput').addEventListener('input', renderSuggestions);
+
+document.getElementById('fab').addEventListener('click', () => openAdd());
+document.getElementById('cancelBtn').addEventListener('click', closeModal);
+modalBackdrop.addEventListener('click', () => closeModal());
+
+// tap on empty timeline → add at that time
+document.getElementById('grid').addEventListener('click', (e) => {
+  if (e.target.closest('.event')) return;
+  const grid = document.getElementById('grid');
+  const rect = grid.getBoundingClientRect();
+  const y = e.clientY - rect.top;
+  const offsetMin = Math.floor((y / HOUR_PX) * 60 / STEP) * STEP;
+  const min = DAY_START + offsetMin;
+  const clamped = Math.max(DAY_START, Math.min(DAY_END - STEP, min));
+  openAdd(clamped);
+});
+
+// save
+document.getElementById('saveBtn').addEventListener('click', () => {
+  clearError();
+  if (!selectedTemplate) { showError('ジャンルを選んでください'); return; }
+  if (endMin <= startMin) { showError('終了時刻は開始時刻より後にしてください'); return; }
+  const contentVal = document.getElementById('contentInput').value.trim();
+  if (editingId) {
+    const ev = events.find(e => e.id === editingId);
+    if (ev) {
+      ev.templateId = selectedTemplate;
+      ev.startMin = startMin;
+      ev.endMin = endMin;
+      if (contentVal) ev.content = contentVal;
+      else delete ev.content;
+    }
+  } else {
+    const newEv = { id: uid(), templateId: selectedTemplate, startMin, endMin };
+    if (contentVal) newEv.content = contentVal;
+    events.push(newEv);
+  }
+  events.sort((a, b) => a.startMin - b.startMin);
+  persist();
+  closeModal();
+  renderAll();
+});
+
+// delete
+deleteBtn.addEventListener('click', () => {
+  if (!editingId) return;
+  if (!confirm('この予定を削除しますか？')) return;
+  events = events.filter(e => e.id !== editingId);
+  persist();
+  closeModal();
+  renderAll();
+});
+
+// reset
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if (events.length === 0) return;
+  if (!confirm('今日の予定をすべて削除しますか？')) return;
+  events = [];
+  persist();
+  renderAll();
+});
+
+// ────── Routines ──────
+const ROUTINE_STORAGE_KEY = 'simple-schedule-routines-v1';
+let routines = [];
+
+function loadRoutines() {
+  try {
+    const raw = localStorage.getItem(ROUTINE_STORAGE_KEY);
+    if (raw) routines = JSON.parse(raw) || [];
+  } catch (e) { routines = []; }
+}
+function persistRoutines() {
+  try { localStorage.setItem(ROUTINE_STORAGE_KEY, JSON.stringify(routines)); } catch (e) {}
+}
+
+const routineBackdrop = document.getElementById('routineBackdrop');
+
+function openRoutineSheet() {
+  renderRoutineList();
+  routineBackdrop.classList.add('active');
+}
+function closeRoutineSheet() {
+  routineBackdrop.classList.remove('active');
+  routineBackdrop.style.bottom = '';
+}
+
+function renderRoutineList() {
+  const el = document.getElementById('routineList');
+  const saveBtn = document.getElementById('saveRoutineBtn');
+  saveBtn.disabled = events.length === 0;
+  saveBtn.style.opacity = events.length === 0 ? '0.4' : '';
+  if (routines.length === 0) {
+    el.innerHTML = '<div class="routine-empty">保存されたルーティンはまだありません</div>';
+    return;
+  }
+  el.innerHTML = routines.map(r => `
+    <div class="routine-row" data-id="${r.id}">
+      <div class="routine-info">
+        <div class="routine-name">${escapeHtml(r.name)}</div>
+        <div class="routine-meta">${r.items.length}件の予定</div>
+      </div>
+      <button class="routine-icon-btn primary" data-act="apply">適用</button>
+      <button class="routine-icon-btn" data-act="rename" aria-label="名前変更"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16v4z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></button>
+      <button class="routine-icon-btn" data-act="delete" aria-label="削除"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 7h14M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
+  `).join('');
+  el.querySelectorAll('.routine-row').forEach(row => {
+    const id = row.dataset.id;
+    row.querySelectorAll('.routine-icon-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const act = btn.dataset.act;
+        if (act === 'apply') applyRoutine(id);
+        else if (act === 'rename') renameRoutine(id);
+        else if (act === 'delete') deleteRoutine(id);
+      });
+    });
+  });
+}
+
+function saveCurrentAsRoutine() {
+  if (events.length === 0) return;
+  const name = prompt('ルーティン名を入力してください');
+  if (name === null) return;
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  routines.push({
+    id: uid(),
+    name: trimmed,
+    items: events.map(e => {
+      const item = { templateId: e.templateId, startMin: e.startMin, endMin: e.endMin };
+      if (e.content) item.content = e.content;
+      return item;
+    })
+  });
+  persistRoutines();
+  renderRoutineList();
+}
+
+function applyRoutine(id) {
+  const r = routines.find(rr => rr.id === id);
+  if (!r) return;
+  if (!confirm(`今日の予定を「${r.name}」で置き換えますか？`)) return;
+  events = r.items.map(item => ({ id: uid(), ...item }));
+  events.sort((a, b) => a.startMin - b.startMin);
+  persist();
+  renderAll();
+  closeRoutineSheet();
+}
+
+function renameRoutine(id) {
+  const r = routines.find(rr => rr.id === id);
+  if (!r) return;
+  const name = prompt('新しい名前', r.name);
+  if (name === null) return;
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  r.name = trimmed;
+  persistRoutines();
+  renderRoutineList();
+}
+
+function deleteRoutine(id) {
+  const r = routines.find(rr => rr.id === id);
+  if (!r) return;
+  if (!confirm(`「${r.name}」を削除しますか？`)) return;
+  routines = routines.filter(rr => rr.id !== id);
+  persistRoutines();
+  renderRoutineList();
+}
+
+document.getElementById('routineBtn').addEventListener('click', openRoutineSheet);
+document.getElementById('routineCloseBtn').addEventListener('click', closeRoutineSheet);
+document.getElementById('saveRoutineBtn').addEventListener('click', saveCurrentAsRoutine);
+routineBackdrop.addEventListener('click', closeRoutineSheet);
+
+// ────── Init ──────
+load();
+loadRoutines();
+initWheels();
+renderAll();
+
+// update now line every minute — skip if dragging so we don't detach the card
+setInterval(() => { if (!activeDrag) updateNowLine(); }, 60 * 1000);
+
+// scroll to current time on first load
+window.addEventListener('load', () => {
+  const nowMin = currentNowMin();
+  const grid = document.getElementById('grid');
+  const gridTop = grid.getBoundingClientRect().top + window.scrollY;
+  const target = gridTop + ((nowMin - DAY_START) / 60) * HOUR_PX - 200;
+  window.scrollTo({ top: Math.max(0, target), behavior: 'instant' });
+});
+
+// PWA service worker registration (no-op SW satisfies install criteria; offline not required).
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
